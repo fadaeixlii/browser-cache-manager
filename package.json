@@ -1,6 +1,6 @@
 {
     "name": "@fadaeixlii/browser-cache-manager",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "A flexible caching package for API calls and functions with multiple storage strategies",
     "main": "index.js",
     "scripts": {
