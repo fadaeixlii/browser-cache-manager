@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cache Manager Simple Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .section {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 12px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        #log {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            height: 300px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        .info { color: #2196F3; }
+        .warning { color: #ff9800; }
+    </style>
+</head>
+<body>
+    <h1>Cache Manager Test</h1>
+    
+    <div class="container">
+        <div class="section">
+            <h2>Cache Driver Selection</h2>
+            <div>
+                <label for="driverType">Cache Driver:</label>
+                <select id="driverType">
+                    <option value="LocalStorage">LocalStorage</option>
+                    <option value="CacheStorage">CacheStorage</option>
+                    <option value="IndexedDB">IndexedDB</option>
+                </select>
+                <button onclick="createCacheManager()">Create Cache Manager</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Basic Cache Operations</h2>
+            <div>
+                <label for="cacheKey">Key:</label>
+                <input type="text" id="cacheKey" placeholder="Enter cache key">
+                
+                <label for="cacheValue">Value:</label>
+                <input type="text" id="cacheValue" placeholder="Enter value to cache">
+                
+                <button onclick="setCache()">Set</button>
+                <button onclick="getCache()">Get</button>
+                <button onclick="hasCache()">Has</button>
+                <button onclick="deleteCache()">Delete</button>
+                <button onclick="clearCache()">Clear All</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>API Cache Key Generation</h2>
+            <div>
+                <label for="apiUrl">URL:</label>
+                <input type="text" id="apiUrl" value="https://api.example.com/data" style="width: 250px;">
+                
+                <label for="apiParams">Query Params (JSON):</label>
+                <input type="text" id="apiParams" value='{"id": 123}' style="width: 150px;">
+                
+                <label for="apiBody">Body (JSON):</label>
+                <input type="text" id="apiBody" value='{"name": "test"}' style="width: 150px;">
+                
+                <button onclick="generateApiKey()">Generate API Key</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Function Cache Key Generation</h2>
+            <div>
+                <label for="funcName">Function Name:</label>
+                <input type="text" id="funcName" value="calculateSum">
+                
+                <label for="funcArgs">Arguments (JSON):</label>
+                <input type="text" id="funcArgs" value='[5, 10]'>
+                
+                <button onclick="generateFunctionKey()">Generate Function Key</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Test Cached Function</h2>
+            <div>
+                <label for="param1">Parameter 1:</label>
+                <input type="number" id="param1" value="5">
+                
+                <label for="param2">Parameter 2:</label>
+                <input type="number" id="param2" value="10">
+                
+                <label for="strategy">Strategy:</label>
+                <select id="strategy">
+                    <option value="justCache">justCache</option>
+                    <option value="cacheFirstThenUpdate">cacheFirstThenUpdate</option>
+                </select>
+                
+                <button onclick="testCachedFunction()">Execute Function</button>
+            </div>
+        </div>
+
+        <div id="log"></div>
+    </div>
+
+    <script type="module">
+        // Import the cache manager module
+        import { 
+            CacheManager, 
+            StrategiesManager, 
+            CacheDriverType, 
+            CacheStrategies 
+        } from '../index.js';
+
+        // Make available globally
+        window.cacheManager = null;
+        window.CacheDriverType = CacheDriverType;
+        window.CacheStrategies = CacheStrategies;
+
+        // Initialize
+        window.createCacheManager = function() {
+            const driverType = document.getElementById('driverType').value;
+            window.cacheManager = new CacheManager(driverType);
+            logMessage(`Created new CacheManager with driver: ${driverType}`, 'success');
+        };
+
+        // Create a default cache manager
+        window.createCacheManager();
+
+        // Basic operations
+        window.setCache = async function() {
+            try {
+                const key = document.getElementById('cacheKey').value;
+                const value = document.getElementById('cacheValue').value;
+                
+                if (!key) {
+                    logMessage('Please enter a key', 'error');
+                    return;
+                }
+                
+                let parsedValue;
+                try {
+                    // Try to parse as JSON if possible
+                    parsedValue = JSON.parse(value);
+                } catch (e) {
+                    // Otherwise use as string
+                    parsedValue = value;
+                }
+                
+                await window.cacheManager.set(key, parsedValue);
+                logMessage(`Set cache: ${key} = ${value}`, 'success');
+            } catch (error) {
+                logMessage(`Error setting cache: ${error.message}`, 'error');
+            }
+        };
+
+        window.getCache = async function() {
+            try {
+                const key = document.getElementById('cacheKey').value;
+                
+                if (!key) {
+                    logMessage('Please enter a key', 'error');
+                    return;
+                }
+                
+                const value = await window.cacheManager.get(key);
+                if (value === null) {
+                    logMessage(`No value found for key: ${key}`, 'warning');
+                } else {
+                    logMessage(`Got cache: ${key} = ${JSON.stringify(value)}`, 'success');
+                }
+            } catch (error) {
+                logMessage(`Error getting cache: ${error.message}`, 'error');
+            }
+        };
+
+        window.hasCache = async function() {
+            try {
+                const key = document.getElementById('cacheKey').value;
+                
+                if (!key) {
+                    logMessage('Please enter a key', 'error');
+                    return;
+                }
+                
+                const exists = await window.cacheManager.has(key);
+                logMessage(`Key ${key} exists: ${exists}`, 'info');
+            } catch (error) {
+                logMessage(`Error checking cache: ${error.message}`, 'error');
+            }
+        };
+
+        window.deleteCache = async function() {
+            try {
+                const key = document.getElementById('cacheKey').value;
+                
+                if (!key) {
+                    logMessage('Please enter a key', 'error');
+                    return;
+                }
+                
+                const result = await window.cacheManager.delete(key);
+                logMessage(`Deleted key ${key}: ${result}`, 'info');
+            } catch (error) {
+                logMessage(`Error deleting cache: ${error.message}`, 'error');
+            }
+        };
+
+        window.clearCache = async function() {
+            try {
+                await window.cacheManager.clear();
+                logMessage('Cleared all cache', 'info');
+            } catch (error) {
+                logMessage(`Error clearing cache: ${error.message}`, 'error');
+            }
+        };
+
+        // Key generation
+        window.generateApiKey = function() {
+            try {
+                const url = document.getElementById('apiUrl').value;
+                let params = null;
+                let body = null;
+                
+                try {
+                    const paramsText = document.getElementById('apiParams').value;
+                    if (paramsText) {
+                        params = JSON.parse(paramsText);
+                    }
+                } catch (e) {
+                    logMessage('Invalid JSON for params', 'error');
+                    return;
+                }
+                
+                try {
+                    const bodyText = document.getElementById('apiBody').value;
+                    if (bodyText) {
+                        body = JSON.parse(bodyText);
+                    }
+                } catch (e) {
+                    logMessage('Invalid JSON for body', 'error');
+                    return;
+                }
+                
+                const key = window.cacheManager.generateApiCacheKey(url, params, body);
+                logMessage(`Generated API key: ${key}`, 'success');
+            } catch (error) {
+                logMessage(`Error generating API key: ${error.message}`, 'error');
+            }
+        };
+
+        window.generateFunctionKey = function() {
+            try {
+                const funcName = document.getElementById('funcName').value;
+                let args = [];
+                
+                try {
+                    const argsText = document.getElementById('funcArgs').value;
+                    if (argsText) {
+                        args = JSON.parse(argsText);
+                    }
+                } catch (e) {
+                    logMessage('Invalid JSON for arguments', 'error');
+                    return;
+                }
+                
+                const key = window.cacheManager.generateFunctionCacheKey(funcName, args);
+                logMessage(`Generated function key: ${key}`, 'success');
+            } catch (error) {
+                logMessage(`Error generating function key: ${error.message}`, 'error');
+            }
+        };
+
+        // Test cached function
+        window.testCachedFunction = async function() {
+            try {
+                const param1 = parseInt(document.getElementById('param1').value);
+                const param2 = parseInt(document.getElementById('param2').value);
+                const strategy = document.getElementById('strategy').value;
+                
+                // Create an expensive function (simulated with a delay)
+                const expensiveCalculation = async (a, b) => {
+                    logMessage('Calculating...', 'info');
+                    
+                    // Simulate expensive calculation with delay
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    return a + b;
+                };
+                
+                // Create cached version
+                const cachedCalculation = window.cacheManager.cacheFunction(expensiveCalculation, {
+                    strategy: CacheStrategies[strategy.toUpperCase()]
+                });
+                
+                logMessage(`Executing function with params: ${param1}, ${param2}`, 'info');
+                
+                const startTime = performance.now();
+                const result = await cachedCalculation(param1, param2);
+                const endTime = performance.now();
+                
+                logMessage(`Function result: ${result.data}`, 'success');
+                logMessage(`From cache: ${result.fromCache}`, 'info');
+                logMessage(`Execution time: ${(endTime - startTime).toFixed(2)}ms`, 'info');
+            } catch (error) {
+                logMessage(`Error executing cached function: ${error.message}`, 'error');
+            }
+        };
+
+        // Helper function to log messages
+        window.logMessage = function(message, type = 'info') {
+            const logElement = document.getElementById('log');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logElement.prepend(logEntry);
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cache Manager Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+        }
+        .section {
+            margin: 10px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 12px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #log {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            height: 300px;
+            overflow-y: auto;
+        }
+        .log {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            height: 200px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .success {
+            color: #4CAF50;
+        }
+        .error {
+            color: #f44336;
+        }
+        .info {
+            color: #2196F3;
+        }
+        .warning {
+            color: #ff9800;
+        }
+        .input-group {
+            margin: 10px 0;
+        }
+        input, select {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .tab-container {
+            margin-top: 20px;
+        }
+        .tab-buttons {
+            display: flex;
+            border-bottom: 1px solid #ddd;
+        }
+        .tab-button {
+            padding: 10px 20px;
+            background-color: #f1f1f1;
+            border: none;
+            cursor: pointer;
+            margin-right: 5px;
+            border-radius: 5px 5px 0 0;
+        }
+        .tab-button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-top: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cache Manager Test</h1>
+    
+    <div class="tab-container">
+        <div class="tab-buttons">
+            <button class="tab-button active" onclick="openTab(event, 'basicTab')">Basic Operations</button>
+            <button class="tab-button" onclick="openTab(event, 'apiTab')">API Caching</button>
+            <button class="tab-button" onclick="openTab(event, 'functionTab')">Function Caching</button>
+            <button class="tab-button" onclick="openTab(event, 'keysTab')">Key Management</button>
+        </div>
+        
+        <div id="basicTab" class="tab-content active">
+            <div class="container">
+                <div class="section">
+                    <h2>Cache Driver Selection</h2>
+                    <div class="input-group">
+                        <label for="driverType">Cache Driver:</label>
+                        <select id="driverType">
+                            <option value="LocalStorage">LocalStorage</option>
+                            <option value="CacheStorage">CacheStorage</option>
+                            <option value="IndexedDB">IndexedDB</option>
+                        </select>
+                        <button onclick="createCacheManager()">Create Cache Manager</button>
+                    </div>
+                    
+                    <h2>Basic Operations</h2>
+                    <div class="input-group">
+                        <label for="cacheKey">Key:</label>
+                        <input type="text" id="cacheKey" placeholder="Enter cache key">
+                    </div>
+                    <div class="input-group">
+                        <label for="cacheValue">Value:</label>
+                        <input type="text" id="cacheValue" placeholder="Enter value to cache">
+                    </div>
+                    <div>
+                        <button onclick="setCache()">Set</button>
+                        <button onclick="getCache()">Get</button>
+                        <button onclick="hasCache()">Has</button>
+                        <button onclick="deleteCache()">Delete</button>
+                        <button onclick="clearCache()">Clear All</button>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>Log</h2>
+                    <div id="basicLog" class="log"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="apiTab" class="tab-content">
+            <div class="container">
+                <div class="section">
+                    <h2>API Caching</h2>
+                    <div class="input-group">
+                        <label for="apiUrl">API URL:</label>
+                        <input type="text" id="apiUrl" placeholder="Enter API URL" value="https://jsonplaceholder.typicode.com/todos/1">
+                    </div>
+                    <div class="input-group">
+                        <label for="apiStrategy">Strategy:</label>
+                        <select id="apiStrategy">
+                            <option value="justCache">justCache</option>
+                            <option value="cacheFirstThenUpdate">cacheFirstThenUpdate</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="apiDriverType">Cache Driver:</label>
+                        <select id="apiDriverType">
+                            <option value="LocalStorage">LocalStorage</option>
+                            <option value="CacheStorage">CacheStorage</option>
+                            <option value="IndexedDB">IndexedDB</option>
+                        </select>
+                    </div>
+                    <button onclick="cacheApiCall()">Fetch and Cache API</button>
+                </div>
+                
+                <div class="section">
+                    <h2>Log</h2>
+                    <div id="apiLog" class="log"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="functionTab" class="tab-content">
+            <div class="container">
+                <div class="section">
+                    <h2>Function Caching</h2>
+                    <div class="input-group">
+                        <label for="funcParam1">Parameter 1:</label>
+                        <input type="number" id="funcParam1" placeholder="Enter number" value="5">
+                    </div>
+                    <div class="input-group">
+                        <label for="funcParam2">Parameter 2:</label>
+                        <input type="number" id="funcParam2" placeholder="Enter number" value="10">
+                    </div>
+                    <div class="input-group">
+                        <label for="funcStrategy">Strategy:</label>
+                        <select id="funcStrategy">
+                            <option value="justCache">justCache</option>
+                            <option value="cacheFirstThenUpdate">cacheFirstThenUpdate</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label for="funcDriverType">Cache Driver:</label>
+                        <select id="funcDriverType">
+                            <option value="LocalStorage">LocalStorage</option>
+                            <option value="CacheStorage">CacheStorage</option>
+                            <option value="IndexedDB">IndexedDB</option>
+                        </select>
+                    </div>
+                    <button onclick="cacheFunctionCall()">Execute Cached Function</button>
+                </div>
+                
+                <div class="section">
+                    <h2>Log</h2>
+                    <div id="functionLog" class="log"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="keysTab" class="tab-content">
+            <div class="container">
+                <div class="section">
+                    <h2>Key Management</h2>
+                    <div class="input-group">
+                        <label for="keyDriverType">Cache Driver:</label>
+                        <select id="keyDriverType">
+                            <option value="LocalStorage">LocalStorage</option>
+                            <option value="CacheStorage">CacheStorage</option>
+                            <option value="IndexedDB">IndexedDB</option>
+                        </select>
+                    </div>
+                    <button onclick="listAllKeys()">List All Keys</button>
+                    
+                    <h3>Generate API Key</h3>
+                    <div class="input-group">
+                        <label for="genApiUrl">URL:</label>
+                        <input type="text" id="genApiUrl" placeholder="Enter API URL" value="https://api.example.com/data">
+                    </div>
+                    <div class="input-group">
+                        <label for="genApiParams">Query Params (JSON):</label>
+                        <input type="text" id="genApiParams" placeholder='{"id": 123}' value='{"id": 123}'>
+                    </div>
+                    <div class="input-group">
+                        <label for="genApiBody">Body (JSON):</label>
+                        <input type="text" id="genApiBody" placeholder='{"name": "test"}' value='{"name": "test"}'>
+                    </div>
+                    <button onclick="generateApiKey()">Generate API Key</button>
+                    
+                    <h3>Generate Function Key</h3>
+                    <div class="input-group">
+                        <label for="genFuncName">Function Name:</label>
+                        <input type="text" id="genFuncName" placeholder="Enter function name" value="calculateSum">
+                    </div>
+                    <div class="input-group">
+                        <label for="genFuncArgs">Arguments (JSON):</label>
+                        <input type="text" id="genFuncArgs" placeholder='[5, 10]' value='[5, 10]'>
+                    </div>
+                    <button onclick="generateFunctionKey()">Generate Function Key</button>
+                </div>
+                
+                <div class="section">
+                    <h2>Log</h2>
+                    <div id="keysLog" class="log"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { 
+            CacheManager, 
+            StrategiesManager, 
+            CacheDriverType, 
+            CacheStrategies 
+        } from '../index.js';
+
+        // Make available globally
+        window.CacheManager = CacheManager;
+        window.StrategiesManager = StrategiesManager;
+        window.CacheDriverType = CacheDriverType;
+        window.CacheStrategies = CacheStrategies;
+        window.currentCacheManager = null;
+
+        // Initialize
+        window.createCacheManager = function() {
+            const driverType = document.getElementById('driverType').value;
+            window.currentCacheManager = new CacheManager(driverType);
+            logMessage('basicLog', `Created new CacheManager with driver: ${driverType}`, 'success');
+        };
+
+        // Create a default cache manager
+        window.createCacheManager();
+
+        // Basic operations
+        window.setCache = async function() {
+            try {
+                const key = document.getElementById('cacheKey').value;
+                const value = document.getElementById('cacheValue').value;
+                
+                if (!key) {
+                    logMessage('basicLog', 'Please enter a key', 'error');
+                    return;
+                }
+                
+                let parsedValue;
+                try {
+                    // Try to parse as JSON if possible
+                    parsedValue = JSON.parse(value);
+                } catch (e) {
+                    // Otherwise use as string
+                    parsedValue = value;
+                }
+                
+                await window.currentCacheManager.set(key, parsedValue);
+                logMessage('basicLog', `Set cache: ${key} = ${value}`, 'success');
+            } catch (error) {
+                logMessage('basicLog', `Error setting cache: ${error.message}`, 'error');
+            }
+        };
+
+        window.getCache = async function() {
+            try {
+                const key = document.getElementById('cacheKey').value;
+                
+                if (!key) {
+                    logMessage('basicLog', 'Please enter a key', 'error');
+                    return;
+                }
+                
+                const value = await window.currentCacheManager.get(key);
+                if (value === null) {
+                    logMessage('basicLog', `No value found for key: ${key}`, 'warning');
+                } else {
+                    logMessage('basicLog', `Got cache: ${key} = ${JSON.stringify(value)}`, 'success');
+                }
+            } catch (error) {
+                logMessage('basicLog', `Error getting cache: ${error.message}`, 'error');
+            }
+        };
+
+        window.hasCache = async function() {
+            try {
+                const key = document.getElementById('cacheKey').value;
+                
+                if (!key) {
+                    logMessage('basicLog', 'Please enter a key', 'error');
+                    return;
+                }
+                
+                const exists = await window.currentCacheManager.has(key);
+                logMessage('basicLog', `Key ${key} exists: ${exists}`, 'info');
+            } catch (error) {
+                logMessage('basicLog', `Error checking cache: ${error.message}`, 'error');
+            }
+        };
+
+        window.deleteCache = async function() {
+            try {
+                const key = document.getElementById('cacheKey').value;
+                
+                if (!key) {
+                    logMessage('basicLog', 'Please enter a key', 'error');
+                    return;
+                }
+                
+                const result = await window.currentCacheManager.delete(key);
+                logMessage('basicLog', `Deleted key ${key}: ${result}`, 'info');
+            } catch (error) {
+                logMessage('basicLog', `Error deleting cache: ${error.message}`, 'error');
+            }
+        };
+
+        window.clearCache = async function() {
+            try {
+                await window.currentCacheManager.clear();
+                logMessage('basicLog', 'Cleared all cache', 'info');
+            } catch (error) {
+                logMessage('basicLog', `Error clearing cache: ${error.message}`, 'error');
+            }
+        };
+
+        // API caching
+        window.cacheApiCall = async function() {
+            try {
+                const url = document.getElementById('apiUrl').value;
+                const strategy = document.getElementById('apiStrategy').value;
+                const driverType = document.getElementById('apiDriverType').value;
+                
+                logMessage('apiLog', `Fetching API: ${url} with strategy: ${strategy}`, 'info');
+                
+                const result = await StrategiesManager.cacheApiCall(url, {
+                    strategy: CacheStrategies[strategy.toUpperCase()],
+                    cacheType: driverType
+                });
+                
+                logMessage('apiLog', `API result: ${JSON.stringify(result.data)}`, 'success');
+                logMessage('apiLog', `From cache: ${result.fromCache}`, 'info');
+            } catch (error) {
+                logMessage('apiLog', `Error caching API call: ${error.message}`, 'error');
+            }
+        };
+
+        // Function caching
+        window.cacheFunctionCall = async function() {
+            try {
+                const param1 = parseInt(document.getElementById('funcParam1').value);
+                const param2 = parseInt(document.getElementById('funcParam2').value);
+                const strategy = document.getElementById('funcStrategy').value;
+                const driverType = document.getElementById('funcDriverType').value;
+                
+                // Create an expensive function (simulated with a delay)
+                const expensiveCalculation = async (a, b) => {
+                    logMessage('functionLog', 'Calculating...', 'info');
+                    
+                    // Simulate expensive calculation with delay
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    return a + b;
+                };
+                
+                // Create cached version
+                const cachedCalculation = StrategiesManager.cacheFunction(expensiveCalculation, {
+                    strategy: CacheStrategies[strategy.toUpperCase()],
+                    cacheType: driverType
+                });
+                
+                logMessage('functionLog', `Executing function with params: ${param1}, ${param2}`, 'info');
+                
+                const result = await cachedCalculation(param1, param2);
+                
+                logMessage('functionLog', `Function result: ${result.data}`, 'success');
+                logMessage('functionLog', `From cache: ${result.fromCache}`, 'info');
+            } catch (error) {
+                logMessage('functionLog', `Error caching function: ${error.message}`, 'error');
+            }
+        };
+
+        // Key management
+        window.listAllKeys = async function() {
+            try {
+                const driverType = document.getElementById('keyDriverType').value;
+                
+                // This is a simplified implementation - in a real app you'd need to implement
+                // a method to list all keys for each driver type
+                if (driverType === 'LocalStorage') {
+                    const keys = Object.keys(localStorage);
+                    logMessage('keysLog', `Found ${keys.length} keys in LocalStorage`, 'info');
+                    keys.forEach(key => {
+                        logMessage('keysLog', `Key: ${key}`, 'info');
+                    });
+                } else {
+                    logMessage('keysLog', `Listing keys for ${driverType} is not implemented in this demo`, 'warning');
+                }
+            } catch (error) {
+                logMessage('keysLog', `Error listing keys: ${error.message}`, 'error');
+            }
+        };
+
+        window.generateApiKey = function() {
+            try {
+                const url = document.getElementById('genApiUrl').value;
+                let params = null;
+                let body = null;
+                
+                try {
+                    const paramsText = document.getElementById('genApiParams').value;
+                    if (paramsText) {
+                        params = JSON.parse(paramsText);
+                    }
+                } catch (e) {
+                    logMessage('keysLog', 'Invalid JSON for params', 'error');
+                    return;
+                }
+                
+                try {
+                    const bodyText = document.getElementById('genApiBody').value;
+                    if (bodyText) {
+                        body = JSON.parse(bodyText);
+                    }
+                } catch (e) {
+                    logMessage('keysLog', 'Invalid JSON for body', 'error');
+                    return;
+                }
+                
+                const key = window.currentCacheManager.generateApiCacheKey(url, params, body);
+                logMessage('keysLog', `Generated API key: ${key}`, 'success');
+            } catch (error) {
+                logMessage('keysLog', `Error generating API key: ${error.message}`, 'error');
+            }
+        };
+
+        window.generateFunctionKey = function() {
+            try {
+                const funcName = document.getElementById('genFuncName').value;
+                let args = [];
+                
+                try {
+                    const argsText = document.getElementById('genFuncArgs').value;
+                    if (argsText) {
+                        args = JSON.parse(argsText);
+                    }
+                } catch (e) {
+                    logMessage('keysLog', 'Invalid JSON for arguments', 'error');
+                    return;
+                }
+                
+                const key = window.currentCacheManager.generateFunctionCacheKey(funcName, args);
+                logMessage('keysLog', `Generated function key: ${key}`, 'success');
+            } catch (error) {
+                logMessage('keysLog', `Error generating function key: ${error.message}`, 'error');
+            }
+        };
+
+        // Helper function to log messages
+        window.logMessage = function(logId, message, type = 'info') {
+            const logElement = document.getElementById(logId);
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logElement.prepend(logEntry);
+        };
+
+        // Tab functionality
+        window.openTab = function(evt, tabName) {
+            const tabContents = document.getElementsByClassName('tab-content');
+            for (let i = 0; i < tabContents.length; i++) {
+                tabContents[i].classList.remove('active');
+            }
+            
+            const tabButtons = document.getElementsByClassName('tab-button');
+            for (let i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].classList.remove('active');
+            }
+            
+            document.getElementById(tabName).classList.add('active');
+            evt.currentTarget.classList.add('active');
+        };
+    </script>
+</body>
+</html>

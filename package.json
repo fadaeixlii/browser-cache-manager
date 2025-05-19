@@ -1,14 +1,30 @@
 {
-  "name": "cache-manager",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "idb": "^8.0.1"
-  }
+    "name": "browser-cache-manager",
+    "version": "1.0.0",
+    "description": "A flexible caching package for API calls and functions with multiple storage strategies",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [
+        "cache",
+        "api",
+        "function",
+        "localstorage",
+        "indexeddb",
+        "cachestorage"
+    ],
+    "author": "fadaeixlii",
+    "license": "MIT",
+    "dependencies": {
+        "idb": "^8.0.1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/browser-cache-manager.git"
+    },
+    "bugs": {
+        "url": "https://github.com/browser-cache-manager/issues"
+    },
+    "homepage": "https://github.com/browser-cache-manager#readme"
 }
