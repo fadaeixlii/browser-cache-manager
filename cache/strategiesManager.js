@@ -1,80 +1,84 @@
-import CacheManager from "@/utils/cache/cacheManager";
-import CacheStrategies from "@/enums/CacheStrategies";
+import CacheStrategies from "../enums/CacheStrategies";
+import CacheDriverType from "../enums/CacheDriverType";
+import CacheManager from "./cacheManager";
 
+/**
+ * StrategiesManager - Utility class for working with caching strategies
+ * This class provides helper methods for using the caching strategies
+ */
 class StrategiesManager {
   /**
-   * Handle the `justCache` strategy.
-   * @param {string} key - The cache key.
-   * @param {"LocalStorage"|"CacheStorage"|"IndexedDB"} cacheType - The cache type.
-   * @returns {Promise<any>} Cached data.
-   * @throws {Error} If data is not found in the cache.
+   * Cache an API call using the specified strategy
+   * @param {string} url - The API URL to fetch data from
+   * @param {Object} options - Options for the API call
+   * @param {Object} [options.params=null] - The query parameters
+   * @param {Object} [options.body=null] - The request body
+   * @param {string} [options.method='GET'] - The HTTP method
+   * @param {string} [options.strategy='justCache'] - The caching strategy to use
+   * @param {"LocalStorage"|"CacheStorage"|"IndexedDB"} [options.cacheType='LocalStorage'] - The cache type
+   * @param {Object} [options.fetchOptions={}] - Additional fetch options
+   * @returns {Promise<{data: any, fromCache: boolean}>} The cached or fetched data
    */
-  static async justCache(key, cacheType) {
-    const cachedData = await CacheManager.get(key, cacheType);
-    if (cachedData) {
-      return { data: cachedData, fromCache: true };
-    }
-    throw new Error("Data not found in cache");
+  static async cacheApiCall(url, options = {}) {
+    const { 
+      params = null, 
+      body = null, 
+      method = 'GET', 
+      strategy = CacheStrategies.JUST_CACHE,
+      cacheType = CacheDriverType.LOCAL_STORAGE,
+      fetchOptions = {}
+    } = options;
+    
+    const cacheManager = new CacheManager(cacheType);
+    
+    const fetchFunc = async () => {
+      const fetchUrl = params ? `${url}?${new URLSearchParams(params).toString()}` : url;
+      const response = await fetch(fetchUrl, {
+        method,
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: body ? JSON.stringify(body) : undefined,
+        ...fetchOptions
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API call failed: ${response.status}`);
+      }
+      
+      return response.json();
+    };
+    
+    return cacheManager.cacheApiCall(url, fetchFunc, { params, body, strategy });
   }
 
   /**
-   * Handle the `cacheFirstThenUpdate` strategy.
-   * @param {string} key - The cache key.
-   * @param {"LocalStorage"|"CacheStorage"|"IndexedDB"} cacheType - The cache type.
-   * @param {string} url - The URL to fetch data from.
-   * @param {AxiosRequestConfig} config - Axios config.
-   * @param {AxiosInstance} axiosInstance - The Axios instance.
-   * @returns {Promise<any>} Cached data if available, otherwise fetched data.
+   * Cache a function using the specified strategy
+   * @param {Function} func - The function to cache
+   * @param {Object} options - Options for the function caching
+   * @param {string} [options.strategy='justCache'] - The caching strategy to use
+   * @param {"LocalStorage"|"CacheStorage"|"IndexedDB"} [options.cacheType='LocalStorage'] - The cache type
+   * @param {string} [options.keyPrefix=''] - Optional prefix for the cache key
+   * @returns {Function} The cached function
    */
-  static async cacheFirstThenUpdate(
-    key,
-    cacheType,
-    url,
-    config,
-    axiosInstance
-  ) {
-    const cachedData = await CacheManager.get(key, cacheType);
-    if (cachedData) {
-      // Return cached data immediately
-      setTimeout(async () => {
-        try {
-          const response = await axiosInstance.get(url, config);
-          await CacheManager.set(key, response.data, cacheType);
-        } catch (err) {
-          console.error("Failed to update cache:", err);
-        }
-      }, 0);
-      return { data: cachedData, fromCache: true };
-    }
-    // If no cached data, fetch from API
-    const response = await axiosInstance.get(url, config);
-    await CacheManager.set(key, response.data, cacheType);
-    return response;
+  static cacheFunction(func, options = {}) {
+    const { 
+      strategy = CacheStrategies.JUST_CACHE,
+      cacheType = CacheDriverType.LOCAL_STORAGE,
+      keyPrefix = ''
+    } = options;
+    
+    const cacheManager = new CacheManager(cacheType);
+    return cacheManager.cacheFunction(func, { strategy, keyPrefix });
   }
 
   /**
-   * Execute the specified caching strategy.
-   * @param {string} strategy - The strategy to execute.
-   * @param {Object} options - The options required for the strategy.
-   * @returns {Promise<any>} The response data.
+   * Create a new cache manager instance
+   * @param {"LocalStorage"|"CacheStorage"|"IndexedDB"} [cacheType='LocalStorage'] - The cache type
+   * @returns {CacheManager} A new cache manager instance
    */
-  static async executeStrategy(strategy, options) {
-    switch (strategy) {
-      case CacheStrategies.JUST_CACHE:
-        return this.justCache(options.key, options.cacheType);
-
-      case CacheStrategies.CACHE_FIRST_THEN_UPDATE:
-        return this.cacheFirstThenUpdate(
-          options.key,
-          options.cacheType,
-          options.url,
-          options.config,
-          options.axiosInstance
-        );
-
-      default:
-        throw new Error(`Unsupported caching strategy: ${strategy}`);
-    }
+  static createCacheManager(cacheType = CacheDriverType.LOCAL_STORAGE) {
+    return new CacheManager(cacheType);
   }
 }
 

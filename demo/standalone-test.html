@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cache Manager Standalone Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .control-group {
+            margin-bottom: 10px;
+        }
+        label {
+            display: inline-block;
+            width: 120px;
+            margin-right: 10px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        select, input {
+            padding: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 150px;
+        }
+        #output {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f5f5f5;
+            height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .test-section {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cache Manager Test</h1>
+    
+    <div class="controls">
+        <h2>API Caching Test</h2>
+        <div class="control-group">
+            <label for="apiUrl">API URL:</label>
+            <input type="text" id="apiUrl" value="https://jsonplaceholder.typicode.com/posts" style="width: 300px;">
+        </div>
+        <div class="control-group">
+            <label for="apiParams">Query Params:</label>
+            <input type="text" id="apiParams" value='{"userId": 1}' style="width: 150px;">
+        </div>
+        <div class="control-group">
+            <label for="apiDriver">Cache Driver:</label>
+            <select id="apiDriver">
+                <option value="LocalStorage">LocalStorage</option>
+                <option value="CacheStorage">CacheStorage</option>
+                <option value="IndexedDB">IndexedDB</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="apiStrategy">Strategy:</label>
+            <select id="apiStrategy">
+                <option value="justCache">justCache</option>
+                <option value="cacheFirstThenUpdate">cacheFirstThenUpdate</option>
+            </select>
+        </div>
+        <button onclick="runApiTest()">Run API Test</button>
+    </div>
+    
+    <div class="controls">
+        <h2>Function Caching Test</h2>
+        <div class="control-group">
+            <label for="fibN">Fibonacci N:</label>
+            <input type="number" id="fibN" value="15" min="1" max="30">
+            <small>(Warning: values > 25 may freeze browser)</small>
+        </div>
+        <div class="control-group">
+            <label for="funcDriver">Cache Driver:</label>
+            <select id="funcDriver">
+                <option value="LocalStorage">LocalStorage</option>
+                <option value="CacheStorage">CacheStorage</option>
+                <option value="IndexedDB">IndexedDB</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="funcStrategy">Strategy:</label>
+            <select id="funcStrategy">
+                <option value="justCache">justCache</option>
+                <option value="cacheFirstThenUpdate">cacheFirstThenUpdate</option>
+            </select>
+        </div>
+        <button onclick="runFunctionTest()">Run Function Test</button>
+    </div>
+    
+    <div class="controls">
+        <h2>Clear Cache</h2>
+        <div class="control-group">
+            <label for="clearDriver">Cache Driver:</label>
+            <select id="clearDriver">
+                <option value="LocalStorage">LocalStorage</option>
+                <option value="CacheStorage">CacheStorage</option>
+                <option value="IndexedDB">IndexedDB</option>
+            </select>
+        </div>
+        <button onclick="clearCache()">Clear Cache</button>
+    </div>
+    
+    <div id="output">Results will appear here...</div>
+    
+    <!-- Load the required libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/idb@7.1.1/build/index.min.js"></script>
+    
+    <script>
+// Define available cache driver types
+const CacheDrivers = {
+    LOCAL_STORAGE: 'LocalStorage',
+    CACHE_STORAGE: 'CacheStorage',
+    INDEXED_DB: 'IndexedDB'
+};
+
+// Define available cache strategies
+const CacheStrategies = {
+    JUST_CACHE: 'justCache',
+    CACHE_FIRST_THEN_UPDATE: 'cacheFirstThenUpdate'
+};
+
+        
+        // Heavy calculation function - Fibonacci with recursion (intentionally inefficient)
+        function fibonacci(n) {
+            log(`Calculating fibonacci(${n})...`);
+            if (n <= 1) return n;
+            return fibonacci(n - 1) + fibonacci(n - 2);
+        }
+        
+        // BaseCacheDriver class
+        class BaseCacheDriver {
+            async get(key) { throw new Error('Method not implemented'); }
+            async set(key, data) { throw new Error('Method not implemented'); }
+            async delete(key) { throw new Error('Method not implemented'); }
+            async clear() { throw new Error('Method not implemented'); }
+            async has(key) { throw new Error('Method not implemented'); }
+            
+            async justCacheStrategy(key, fetchFunc) {
+                log(`BaseCacheDriver: justCache strategy - Checking cache for key: ${key}`);
+                const cachedData = await this.get(key);
+                
+                if (cachedData) {
+                    log(`BaseCacheDriver: justCache strategy - Found data in cache for key: ${key}`);
+                    return { data: cachedData, fromCache: true };
+                }
+                
+                log(`BaseCacheDriver: justCache strategy - No data in cache, fetching fresh data for key: ${key}`);
+                try {
+                    const freshData = await fetchFunc();
+                    log(`BaseCacheDriver: justCache strategy - Saving fresh data to cache for key: ${key}`);
+                    await this.set(key, freshData);
+                    return { data: freshData, fromCache: false };
+                } catch (error) {
+                    log(`BaseCacheDriver: Error fetching data: ${error.message}`);
+                    throw error;
+                }
+            }
+            
+            async cacheFirstThenUpdateStrategy(key, fetchFunc) {
+                log(`BaseCacheDriver: cacheFirstThenUpdate strategy - Checking cache for key: ${key}`);
+                const cachedData = await this.get(key);
+                
+                if (cachedData) {
+                    log(`BaseCacheDriver: cacheFirstThenUpdate strategy - Found data in cache for key: ${key}`);
+                    // Return cached data immediately and update in background
+                    log(`BaseCacheDriver: cacheFirstThenUpdate strategy - Starting background update for key: ${key}`);
+                    setTimeout(async () => {
+                        try {
+                            log(`BaseCacheDriver: cacheFirstThenUpdate strategy - Background fetch started for key: ${key}`);
+                            const freshData = await fetchFunc();
+                            log(`BaseCacheDriver: cacheFirstThenUpdate strategy - Background update saving to cache for key: ${key}`);
+                            await this.set(key, freshData);
+                            log(`BaseCacheDriver: cacheFirstThenUpdate strategy - Background update completed for key: ${key}`);
+                        } catch (error) {
+                            log(`BaseCacheDriver: Background update failed: ${error.message}`);
+                        }
+                    }, 10);
+                    
+                    return { data: cachedData, fromCache: true };
+                }
+                
+                // No cached data, fetch synchronously
+                log(`BaseCacheDriver: cacheFirstThenUpdate strategy - No data in cache, fetching fresh data for key: ${key}`);
+                try {
+                    const freshData = await fetchFunc();
+                    log(`BaseCacheDriver: cacheFirstThenUpdate strategy - Saving fresh data to cache for key: ${key}`);
+                    await this.set(key, freshData);
+                    return { data: freshData, fromCache: false };
+                } catch (error) {
+                    log(`BaseCacheDriver: Error fetching data: ${error.message}`);
+                    throw error;
+                }
+            }
+        }
+        
+        // LocalStorageDriver
+        class LocalStorageDriver extends BaseCacheDriver {
+            static prefix = "cache-";
+            
+            static constructKey(key) {
+                return `${this.prefix}${key}`;
+            }
+            
+            async get(key) {
+                try {
+                    const fullKey = LocalStorageDriver.constructKey(key);
+                    const item = localStorage.getItem(fullKey);
+                    return item ? JSON.parse(item) : null;
+                } catch (error) {
+                    log(`Error getting data from localStorage: ${error.message}`);
+                    return null;
+                }
+            }
+            
+            async set(key, data) {
+                try {
+                    const fullKey = LocalStorageDriver.constructKey(key);
+                    localStorage.setItem(fullKey, JSON.stringify(data));
+                } catch (error) {
+                    log(`Error setting data to localStorage: ${error.message}`);
+                    throw error;
+                }
+            }
+            
+            async delete(key) {
+                try {
+                    const fullKey = LocalStorageDriver.constructKey(key);
+                    if (localStorage.getItem(fullKey) === null) {
+                        return false;
+                    }
+                    localStorage.removeItem(fullKey);
+                    return true;
+                } catch (error) {
+                    log(`Error deleting data from localStorage: ${error.message}`);
+                    return false;
+                }
+            }
+            
+            async clear() {
+                try {
+                    const keys = Object.keys(localStorage);
+                    keys.forEach((storedKey) => {
+                        if (storedKey.startsWith(LocalStorageDriver.prefix)) {
+                            localStorage.removeItem(storedKey);
+                        }
+                    });
+                } catch (error) {
+                    log(`Error clearing localStorage: ${error.message}`);
+                    throw error;
+                }
+            }
+            
+            async has(key) {
+                try {
+                    const fullKey = LocalStorageDriver.constructKey(key);
+                    return localStorage.getItem(fullKey) !== null;
+                } catch (error) {
+                    log(`Error checking if key exists in localStorage: ${error.message}`);
+                    return false;
+                }
+            }
+        }
+        
+        // CacheStorageDriver
+        class CacheStorageDriver extends BaseCacheDriver {
+            static cacheName = "api-cache";
+            
+            static async getCache() {
+                return await caches.open(this.cacheName);
+            }
+            
+            async get(key) {
+                try {
+                    log(`CacheStorage: Getting data for key: ${key}`);
+                    const cache = await CacheStorageDriver.getCache();
+                    const request = new Request(`https://cache-key/${key}`);
+                    const response = await cache.match(request);
+                    if (!response) {
+                        log(`CacheStorage: No data found for key: ${key}`);
+                        return null;
+                    }
+                    const data = await response.json();
+                    log(`CacheStorage: Found data for key: ${key}`);
+                    return data;
+                } catch (error) {
+                    log(`Error getting data from cache storage: ${error.message}`);
+                    return null;
+                }
+            }
+            
+            async set(key, data) {
+                try {
+                    log(`CacheStorage: Setting data for key: ${key}`);
+                    const cache = await CacheStorageDriver.getCache();
+                    const request = new Request(`https://cache-key/${key}`);
+                    const response = new Response(JSON.stringify(data), {
+                        headers: { "Content-Type": "application/json" },
+                    });
+                    await cache.put(request, response);
+                    log(`CacheStorage: Data set successfully for key: ${key}`);
+                } catch (error) {
+                    log(`Error setting data to cache storage: ${error.message}`);
+                    throw error;
+                }
+            }
+            
+            async delete(key) {
+                try {
+                    log(`CacheStorage: Deleting data for key: ${key}`);
+                    const cache = await CacheStorageDriver.getCache();
+                    const request = new Request(`https://cache-key/${key}`);
+                    const result = await cache.delete(request);
+                    log(`CacheStorage: Delete result for key ${key}: ${result}`);
+                    return result;
+                } catch (error) {
+                    log(`Error deleting data from cache storage: ${error.message}`);
+                    return false;
+                }
+            }
+            
+            async clear() {
+                try {
+                    log(`CacheStorage: Clearing cache`);
+                    await caches.delete(CacheStorageDriver.cacheName);
+                    log(`CacheStorage: Cache cleared successfully`);
+                } catch (error) {
+                    log(`Error clearing cache storage: ${error.message}`);
+                    throw error;
+                }
+            }
+            
+            async has(key) {
+                try {
+                    log(`CacheStorage: Checking if key exists: ${key}`);
+                    const cache = await CacheStorageDriver.getCache();
+                    const request = new Request(`https://cache-key/${key}`);
+                    const response = await cache.match(request);
+                    const exists = response !== undefined;
+                    log(`CacheStorage: Key ${key} exists: ${exists}`);
+                    return exists;
+                } catch (error) {
+                    log(`Error checking if key exists in cache storage: ${error.message}`);
+                    return false;
+                }
+            }
+        }
+        
+        // IndexedDBDriver
+        class IndexedDBDriver extends BaseCacheDriver {
+            static dbName = "cache-db";
+            static storeName = "api-cache";
+            static dbPromise = null;
+            
+            static async initDB() {
+                if (!this.dbPromise) {
+                    log(`IndexedDB: Initializing database ${this.dbName}`);
+                    try {
+                        this.dbPromise = window.idb.openDB(this.dbName, 1, {
+                            upgrade(db) {
+                                log(`IndexedDB: Upgrading database schema`);
+                                if (!db.objectStoreNames.contains(IndexedDBDriver.storeName)) {
+                                    db.createObjectStore(IndexedDBDriver.storeName);
+                                    log(`IndexedDB: Created object store ${IndexedDBDriver.storeName}`);
+                                }
+                            },
+                        });
+                        log(`IndexedDB: Database initialized successfully`);
+                    } catch (error) {
+                        log(`IndexedDB: Error initializing database: ${error.message}`);
+                        throw error;
+                    }
+                }
+                return this.dbPromise;
+            }
+            
+            async get(key) {
+                try {
+                    log(`IndexedDB: Getting data for key: ${key}`);
+                    const db = await IndexedDBDriver.initDB();
+                    const tx = db.transaction(IndexedDBDriver.storeName, "readonly");
+                    const store = tx.objectStore(IndexedDBDriver.storeName);
+                    const result = await store.get(key);
+                    await tx.done;
+                    if (result !== undefined) {
+                        log(`IndexedDB: Found data for key: ${key}`);
+                        return result;
+                    } else {
+                        log(`IndexedDB: No data found for key: ${key}`);
+                        return null;
+                    }
+                } catch (error) {
+                    log(`Error getting data from IndexedDB: ${error.message}`);
+                    return null;
+                }
+            }
+            
+            async set(key, data) {
+                try {
+                    log(`IndexedDB: Setting data for key: ${key}`);
+                    const db = await IndexedDBDriver.initDB();
+                    const tx = db.transaction(IndexedDBDriver.storeName, "readwrite");
+                    const store = tx.objectStore(IndexedDBDriver.storeName);
+                    
+                    // Log the data we're trying to store
+                    log(`IndexedDB: Storing data: ${JSON.stringify(data).substring(0, 100)}...`);
+                    
+                    // Store the data
+                    await store.put(data, key);
+                    await tx.done;
+                    
+                    // Verify the data was stored
+                    const verifyTx = db.transaction(IndexedDBDriver.storeName, "readonly");
+                    const verifyStore = verifyTx.objectStore(IndexedDBDriver.storeName);
+                    const verifyResult = await verifyStore.get(key);
+                    await verifyTx.done;
+                    
+                    if (verifyResult !== undefined) {
+                        log(`IndexedDB: Data verified and set successfully for key: ${key}`);
+                    } else {
+                        log(`IndexedDB: WARNING - Data could not be verified after setting for key: ${key}`);
+                    }
+                    
+                    return true;
+                } catch (error) {
+                    log(`Error setting data to IndexedDB: ${error.message}`);
+                    throw error;
+                }
+            }
+            
+            async delete(key) {
+                try {
+                    log(`IndexedDB: Deleting data for key: ${key}`);
+                    const db = await IndexedDBDriver.initDB();
+                    const tx = db.transaction(IndexedDBDriver.storeName, "readwrite");
+                    const store = tx.objectStore(IndexedDBDriver.storeName);
+                    await store.delete(key);
+                    await tx.done;
+                    log(`IndexedDB: Data deleted successfully for key: ${key}`);
+                    return true;
+                } catch (error) {
+                    log(`Error deleting data from IndexedDB: ${error.message}`);
+                    return false;
+                }
+            }
+            
+            async clear() {
+                try {
+                    log(`IndexedDB: Clearing all data`);
+                    const db = await IndexedDBDriver.initDB();
+                    const tx = db.transaction(IndexedDBDriver.storeName, "readwrite");
+                    const store = tx.objectStore(IndexedDBDriver.storeName);
+                    await store.clear();
+                    await tx.done;
+                    log(`IndexedDB: All data cleared successfully`);
+                } catch (error) {
+                    log(`Error clearing IndexedDB: ${error.message}`);
+                    throw error;
+                }
+            }
+            
+            async has(key) {
+                try {
+                    log(`IndexedDB: Checking if key exists: ${key}`);
+                    const db = await IndexedDBDriver.initDB();
+                    const tx = db.transaction(IndexedDBDriver.storeName, "readonly");
+                    const store = tx.objectStore(IndexedDBDriver.storeName);
+                    const result = await store.get(key);
+                    await tx.done;
+                    const exists = result !== undefined;
+                    log(`IndexedDB: Key ${key} exists: ${exists}`);
+                    return exists;
+                } catch (error) {
+                    log(`Error checking if key exists in IndexedDB: ${error.message}`);
+                    return false;
+                }
+            }
+        }
+        
+        // CacheManager class
+        class CacheManager {
+            constructor(driverType = CacheDrivers.LOCAL_STORAGE) {
+                this.driverType = driverType;
+                this.driver = this.#createDriver(driverType);
+                log(`CacheManager: Initialized with driver type: ${driverType}`);
+            }
+            
+            #createDriver(driverType) {
+                log(`CacheManager: Creating driver of type: ${driverType}`);
+                switch (driverType) {
+                    case CacheDrivers.LOCAL_STORAGE:
+                        return new LocalStorageDriver();
+                    case CacheDrivers.CACHE_STORAGE:
+                        return new CacheStorageDriver();
+                    case CacheDrivers.INDEXED_DB:
+                        return new IndexedDBDriver();
+                    default:
+                        log(`CacheManager: Unknown driver type, defaulting to LocalStorage`);
+                        return new LocalStorageDriver();
+                }
+            }
+            
+            async get(key) {
+                log(`CacheManager: Getting data for key: ${key}`);
+                return this.driver.get(key);
+            }
+            
+            async set(key, data) {
+                log(`CacheManager: Setting data for key: ${key}`);
+                try {
+                    // For IndexedDB, we need to ensure data is serializable
+                    if (this.driverType === CacheDrivers.INDEXED_DB) {
+                        // Make a serializable copy of the data
+                        const serializableData = JSON.parse(JSON.stringify(data));
+                        return this.driver.set(key, serializableData);
+                    } else {
+                        return this.driver.set(key, data);
+                    }
+                } catch (error) {
+                    log(`CacheManager: Error setting data: ${error.message}`);
+                    throw error;
+                }
+            }
+            
+            async delete(key) {
+                log(`CacheManager: Deleting data for key: ${key}`);
+                return this.driver.delete(key);
+            }
+            
+            async clear() {
+                log(`CacheManager: Clearing all data`);
+                return this.driver.clear();
+            }
+            
+            async has(key) {
+                log(`CacheManager: Checking if key exists: ${key}`);
+                return this.driver.has(key);
+            }
+            
+            async cacheApiCall(url, fetchFunc, options = {}) {
+                const { params = null, body = null, strategy = CacheStrategies.JUST_CACHE } = options;
+                const key = this.generateApiCacheKey(url, params, body);
+                
+                log(`CacheManager: Caching API call with key: ${key}`);
+                log(`CacheManager: Using strategy: ${strategy}`);
+                
+                try {
+                    switch (strategy) {
+                        case CacheStrategies.JUST_CACHE:
+                            return this.driver.justCacheStrategy(key, fetchFunc);
+                        case CacheStrategies.CACHE_FIRST_THEN_UPDATE:
+                            return this.driver.cacheFirstThenUpdateStrategy(key, fetchFunc);
+                        default:
+                            return this.driver.justCacheStrategy(key, fetchFunc);
+                    }
+                } catch (error) {
+                    log(`CacheManager: Error in cacheApiCall: ${error.message}`);
+                    throw error;
+                }
+            }
+            
+            cacheFunction(func, options = {}) {
+                const { strategy = CacheStrategies.JUST_CACHE, keyPrefix = '' } = options;
+                const funcName = func.name || 'anonymous';
+                const driver = this.driver;
+                const driverType = this.driverType;
+                const self = this;
+                
+                log(`CacheManager: Caching function: ${funcName}`);
+                log(`CacheManager: Using strategy: ${strategy}`);
+                
+                return async (...args) => {
+                    const key = this.generateFunctionCacheKey(keyPrefix + funcName, args);
+                    log(`CacheManager: Generated function cache key: ${key}`);
+                    
+                    const fetchFunc = async () => {
+                        log(`CacheManager: Executing original function: ${funcName}`);
+                        try {
+                            const result = await func(...args);
+                            log(`CacheManager: Function execution completed successfully`);
+                            return result;
+                        } catch (error) {
+                            log(`CacheManager: Error executing function: ${error.message}`);
+                            throw error;
+                        }
+                    };
+                    
+                    try {
+                        let result;
+                        switch (strategy) {
+                            case CacheStrategies.JUST_CACHE:
+                                result = await driver.justCacheStrategy(key, fetchFunc);
+                                break;
+                            case CacheStrategies.CACHE_FIRST_THEN_UPDATE:
+                                result = await driver.cacheFirstThenUpdateStrategy(key, fetchFunc);
+                                break;
+                            default:
+                                result = await driver.justCacheStrategy(key, fetchFunc);
+                        }
+                        
+                        // For IndexedDB, ensure we're returning a proper object
+                        if (driverType === CacheDrivers.INDEXED_DB && result) {
+                            log(`CacheManager: Processing IndexedDB result`);
+                            // Ensure we have the correct structure
+                            if (!result.hasOwnProperty('data')) {
+                                log(`CacheManager: Fixing result structure for IndexedDB`);
+                                return { data: result, fromCache: true };
+                            }
+                        }
+                        
+                        return result;
+                    } catch (error) {
+                        log(`CacheManager: Error in cacheFunction strategy: ${error.message}`);
+                        // Fallback to direct execution
+                        log(`CacheManager: Falling back to direct function execution`);
+                        const directResult = await fetchFunc();
+                        return { data: directResult, fromCache: false };
+                    }
+                };
+            }
+            
+            generateApiCacheKey(url, params = null, body = null) {
+                const queryString = params ? new URLSearchParams(params).toString() : '';
+                const bodyString = body ? JSON.stringify(body) : '';
+                return `api:${url}:${queryString}:${bodyString}`;
+            }
+            
+            generateFunctionCacheKey(funcName, args) {
+                // Create a stable representation of the arguments
+                let argsString;
+                try {
+                    argsString = JSON.stringify(args);
+                } catch (error) {
+                    log(`CacheManager: Error stringifying args: ${error.message}`);
+                    // Fallback for non-serializable arguments
+                    argsString = args.map(arg => String(arg)).join(',');
+                }
+                return `func:${funcName}:${argsString}`;
+            }
+        }
+        
+        // Test functions
+        async function testApiCaching(url, params, driverType, strategy) {
+            log(`\n--- Testing API Caching ---`);
+            log(`Driver: ${driverType}, Strategy: ${strategy}`);
+            
+            const cacheManager = new CacheManager(driverType);
+            
+            // Generate and log the key
+            const key = cacheManager.generateApiCacheKey(url, params, null);
+            log(`Generated API key: ${key}`);
+            
+            // Check if key exists in cache
+            const keyExists = await cacheManager.has(key);
+            log(`Key exists in cache before test: ${keyExists}`);
+            
+            // Create fetch function
+            const fetchFunc = async () => {
+                log(`Fetching from API: ${url}`);
+                const queryString = params ? new URLSearchParams(params).toString() : '';
+                const fullUrl = queryString ? `${url}?${queryString}` : url;
+                
+                const startTime = performance.now();
+                const response = await fetch(fullUrl);
+                const endTime = performance.now();
+                log(`API fetch took ${(endTime - startTime).toFixed(2)}ms`);
+                
+                if (!response.ok) {
+                    throw new Error(`API call failed: ${response.status}`);
+                }
+                
+                return response.json();
+            };
+            
+            // First call
+            log(`First call:`);
+            const startTime1 = performance.now();
+            const result1 = await cacheManager.cacheApiCall(url, fetchFunc, { 
+                params, 
+                strategy: strategy 
+            });
+            const endTime1 = performance.now();
+            
+            log(`Result: ${JSON.stringify(result1.data).substring(0, 100)}...`);
+            log(`From cache: ${result1.fromCache}`);
+            log(`Total time: ${(endTime1 - startTime1).toFixed(2)}ms`);
+            
+            // Check if key exists in cache after first call
+            const keyExistsAfterFirstCall = await cacheManager.has(key);
+            log(`Key exists in cache after first call: ${keyExistsAfterFirstCall}`);
+            
+            // Second call (should be from cache)
+            log(`\nSecond call (should be from cache):`);
+            const startTime2 = performance.now();
+            const result2 = await cacheManager.cacheApiCall(url, fetchFunc, { 
+                params, 
+                strategy: strategy 
+            });
+            const endTime2 = performance.now();
+            
+            log(`Result: ${JSON.stringify(result2.data).substring(0, 100)}...`);
+            log(`From cache: ${result2.fromCache}`);
+            log(`Total time: ${(endTime2 - startTime2).toFixed(2)}ms`);
+        }
+        
+        async function testFunctionCaching(n, driverType, strategy) {
+            log(`\n--- Testing Function Caching ---`);
+            log(`Driver: ${driverType}, Strategy: ${strategy}`);
+            
+            const cacheManager = new CacheManager(driverType);
+            
+            // Clear any existing cache for this key first
+            const key = cacheManager.generateFunctionCacheKey('fibonacci', [n]);
+            await cacheManager.delete(key);
+            log(`Cleared any existing cache for key: ${key}`);
+            
+            // Create cached version of fibonacci
+            const cachedFib = cacheManager.cacheFunction(fibonacci, { 
+                strategy: strategy 
+            });
+            
+            // Generate and log the key
+            log(`Generated function key: ${key}`);
+            
+            // Check if key exists in cache before test
+            const keyExists = await cacheManager.has(key);
+            log(`Key exists in cache before test: ${keyExists}`);
+            
+            // First call
+            log(`First call:`);
+            const startTime1 = performance.now();
+            const result1 = await cachedFib(n);
+            const endTime1 = performance.now();
+            
+            log(`Result: ${result1.data}`);
+            log(`From cache: ${result1.fromCache}`);
+            log(`Total time: ${(endTime1 - startTime1).toFixed(2)}ms`);
+            
+            // Check if key exists in cache after first call
+            const keyExistsAfterFirstCall = await cacheManager.has(key);
+            log(`Key exists in cache after first call: ${keyExistsAfterFirstCall}`);
+            
+            // Second call (should be from cache)
+            log(`\nSecond call (should be from cache):`);
+            const startTime2 = performance.now();
+            const result2 = await cachedFib(n);
+            const endTime2 = performance.now();
+            
+            log(`Result: ${result2.data}`);
+            log(`From cache: ${result2.fromCache}`);
+            log(`Total time: ${(endTime2 - startTime2).toFixed(2)}ms`);
+            
+            // For cacheFirstThenUpdate strategy, wait a bit and check if the cache was updated
+            if (strategy === CacheStrategies.CACHE_FIRST_THEN_UPDATE) {
+                log(`\nWaiting for background update to complete...`);
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Get the value directly from cache to see if it was updated
+                const updatedValue = await cacheManager.get(key);
+                log(`Updated cache value after background update: ${updatedValue}`);
+            }
+        }
+        
+        // UI functions
+        window.runApiTest = async function() {
+            clearOutput();
+            
+            const url = document.getElementById('apiUrl').value;
+            let params = null;
+            
+            try {
+                const paramsText = document.getElementById('apiParams').value;
+                if (paramsText) {
+                    params = JSON.parse(paramsText);
+                }
+            } catch (e) {
+                log(`Error: Invalid JSON for params - ${e.message}`);
+                return;
+            }
+            
+            const driverType = document.getElementById('apiDriver').value;
+            const strategy = document.getElementById('apiStrategy').value === 'justCache' ? 
+                CacheStrategies.JUST_CACHE : CacheStrategies.CACHE_FIRST_THEN_UPDATE;
+            
+            try {
+                await testApiCaching(url, params, driverType, strategy);
+            } catch (error) {
+                log(`Error: ${error.message}`);
+            }
+        };
+        
+        window.runFunctionTest = async function() {
+            clearOutput();
+            
+            const n = parseInt(document.getElementById('fibN').value);
+            if (n > 25) {
+                log('Warning: Values larger than 25 may crash your browser!');
+                if (!confirm('Are you sure you want to continue with a large value?')) {
+                    return;
+                }
+            }
+            
+            const driverType = document.getElementById('funcDriver').value;
+            const strategy = document.getElementById('funcStrategy').value === 'justCache' ? 
+                CacheStrategies.JUST_CACHE : CacheStrategies.CACHE_FIRST_THEN_UPDATE;
+            
+            try {
+                await testFunctionCaching(n, driverType, strategy);
+            } catch (error) {
+                log(`Error: ${error.message}`);
+            }
+        };
+        
+        window.clearCache = async function() {
+            const driverType = document.getElementById('clearDriver').value;
+            const cacheManager = new CacheManager(driverType);
+            
+            try {
+                await cacheManager.clear();
+                log(`Cleared ${driverType} cache`);
+            } catch (error) {
+                log(`Error clearing cache: ${error.message}`);
+            }
+        };
+        
+        function log(message) {
+            const output = document.getElementById('output');
+            output.textContent += message + '\n';
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function clearOutput() {
+            document.getElementById('output').textContent = '';
+        }
+    </script>
+</body>
+</html>

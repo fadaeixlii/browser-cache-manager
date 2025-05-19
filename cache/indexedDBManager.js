@@ -1,9 +1,11 @@
 import { openDB } from "idb";
+import BaseCacheDriver from './BaseCacheDriver';
 
 /**
  * IndexedDBManager for managing IndexedDB operations.
+ * Implements the BaseCacheDriver interface.
  */
-class IndexedDBManager {
+class IndexedDBManager extends BaseCacheDriver {
   /** @type {string} */
   static dbName = "my-app-db";
 
@@ -35,9 +37,7 @@ class IndexedDBManager {
       this.dbPromise = openDB(this.dbName, 1, {
         upgrade(db) {
           if (!db.objectStoreNames.contains(IndexedDBManager.storeName)) {
-            db.createObjectStore(IndexedDBManager.storeName, {
-              keyPath: "key",
-            });
+            db.createObjectStore(IndexedDBManager.storeName); // No keyPath; use put(value, key)
           }
         },
       });
@@ -46,65 +46,86 @@ class IndexedDBManager {
   }
 
   /**
-   * Saves data to IndexedDB.
+   * Sets data to IndexedDB.
    * @param {string} key - The key to identify the data.
    * @param {*} data - The data to be saved.
    * @returns {Promise<void>} A promise that resolves when the data is saved.
    * @example
-   * await IndexedDBManager.save('exampleKey', { value: 42 });
+   * await indexedDBManager.set('exampleKey', { value: 42 });
    */
-  static async save(key, data) {
-    const db = await this.initDB();
-    const tx = db.transaction(this.storeName, "readwrite");
-    const store = tx.objectStore(this.storeName);
-    await store.put({ key, data });
-    await tx.done;
+  async set(key, data) {
+    try {
+      const db = await IndexedDBManager.initDB();
+      const tx = db.transaction(IndexedDBManager.storeName, "readwrite");
+      const store = tx.objectStore(IndexedDBManager.storeName);
+      await store.put(data, key); // Store raw value
+      await tx.done;
+    } catch (error) {
+      console.error('Error setting data to IndexedDB:', error);
+      throw error;
+    }
   }
 
   /**
-   * Loads data from IndexedDB.
+   * Gets data from IndexedDB.
    * @param {string} key - The key to identify the data.
    * @returns {Promise<*>} A promise that resolves to the loaded data, or null if not found.
    * @example
-   * const data = await IndexedDBManager.load('exampleKey');
+   * const data = await indexedDBManager.get('exampleKey');
    * console.log(data);
    */
-  static async load(key) {
-    const db = await this.initDB();
-    const tx = db.transaction(this.storeName, "readonly");
-    const store = tx.objectStore(this.storeName);
-    const result = await store.get(key);
-    await tx.done;
-    return result ? result.data : null;
+  async get(key) {
+    try {
+      const db = await IndexedDBManager.initDB();
+      const tx = db.transaction(IndexedDBManager.storeName, "readonly");
+      const store = tx.objectStore(IndexedDBManager.storeName);
+      const result = await store.get(key);
+      await tx.done;
+      return result === undefined ? null : result; // Return raw value
+    } catch (error) {
+      console.error('Error getting data from IndexedDB:', error);
+      return null;
+    }
   }
 
   /**
    * Deletes data from IndexedDB.
    * @param {string} key - The key to identify the data to be deleted.
-   * @returns {Promise<void>} A promise that resolves when the data is deleted.
+   * @returns {Promise<boolean>} A promise that resolves to true if deleted, false if error.
    * @example
-   * await IndexedDBManager.delete('exampleKey');
+   * await indexedDBManager.delete('exampleKey');
    */
-  static async delete(key) {
-    const db = await this.initDB();
-    const tx = db.transaction(this.storeName, "readwrite");
-    const store = tx.objectStore(this.storeName);
-    await store.delete(key);
-    await tx.done;
+  async delete(key) {
+    try {
+      const db = await IndexedDBManager.initDB();
+      const tx = db.transaction(IndexedDBManager.storeName, "readwrite");
+      const store = tx.objectStore(IndexedDBManager.storeName);
+      await store.delete(key);
+      await tx.done;
+      return true;
+    } catch (error) {
+      console.error('Error deleting data from IndexedDB:', error);
+      return false;
+    }
   }
 
   /**
    * Clears all data from the object store.
    * @returns {Promise<void>} A promise that resolves when the store is cleared.
    * @example
-   * await IndexedDBManager.clear();
+   * await indexedDBManager.clear();
    */
-  static async clear() {
-    const db = await this.initDB();
-    const tx = db.transaction(this.storeName, "readwrite");
-    const store = tx.objectStore(this.storeName);
-    await store.clear();
-    await tx.done;
+  async clear() {
+    try {
+      const db = await IndexedDBManager.initDB();
+      const tx = db.transaction(IndexedDBManager.storeName, "readwrite");
+      const store = tx.objectStore(IndexedDBManager.storeName);
+      await store.clear();
+      await tx.done;
+    } catch (error) {
+      console.error('Error clearing IndexedDB:', error);
+      throw error;
+    }
   }
 
   /**
@@ -121,6 +142,25 @@ class IndexedDBManager {
     const keys = await store.getAllKeys();
     await tx.done;
     return keys;
+  }
+
+  /**
+   * Check if the key exists in IndexedDB.
+   * @param {string} key - The cache key.
+   * @returns {Promise<boolean>} True if exists, false otherwise.
+   */
+  async has(key) {
+    try {
+      const db = await IndexedDBManager.initDB();
+      const tx = db.transaction(IndexedDBManager.storeName, "readonly");
+      const store = tx.objectStore(IndexedDBManager.storeName);
+      const result = await store.get(key);
+      await tx.done;
+      return result !== undefined;
+    } catch (error) {
+      console.error('Error checking if key exists in IndexedDB:', error);
+      return false;
+    }
   }
 }
 

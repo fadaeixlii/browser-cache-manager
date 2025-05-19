@@ -1,7 +1,10 @@
+import BaseCacheDriver from './BaseCacheDriver';
+
 /**
  * CacheStorageManager for managing browser Cache Storage operations.
+ * Implements the BaseCacheDriver interface.
  */
-class CacheStorageManager {
+class CacheStorageManager extends BaseCacheDriver {
   /** @type {string} */
   static cacheName = "default-cache";
 
@@ -30,15 +33,20 @@ class CacheStorageManager {
    * @param {*} data - The data to be stored (automatically stringified).
    * @returns {Promise<void>} A promise that resolves when the data is saved.
    * @example
-   * await CacheStorageManager.set('exampleKey', { value: 42 });
+   * await cacheStorageManager.set('exampleKey', { value: 42 });
    */
-  static async set(key, data) {
-    const cache = await this.getCache();
-    const request = new Request(key);
-    const response = new Response(JSON.stringify(data), {
-      headers: { "Content-Type": "application/json" },
-    });
-    await cache.put(request, response);
+  async set(key, data) {
+    try {
+      const cache = await CacheStorageManager.getCache();
+      const request = new Request(key);
+      const response = new Response(JSON.stringify(data), {
+        headers: { "Content-Type": "application/json" },
+      });
+      await cache.put(request, response);
+    } catch (error) {
+      console.error('Error setting data to cache storage:', error);
+      throw error;
+    }
   }
 
   /**
@@ -46,38 +54,53 @@ class CacheStorageManager {
    * @param {string} key - The key to identify the data.
    * @returns {Promise<*>} A promise that resolves to the retrieved data, or null if not found.
    * @example
-   * const data = await CacheStorageManager.get('exampleKey');
-   * (data);
+   * const data = await cacheStorageManager.get('exampleKey');
    */
-  static async get(key) {
-    const cache = await this.getCache();
-    const request = new Request(key);
-    const response = await cache.match(request);
-    if (!response) return null;
-    return await response.json();
+  async get(key) {
+    try {
+      const cache = await CacheStorageManager.getCache();
+      const request = new Request(key);
+      const response = await cache.match(request);
+      if (!response) return null;
+      return await response.json();
+    } catch (error) {
+      console.error('Error getting data from cache storage:', error);
+      return null;
+    }
   }
 
   /**
    * Deletes data from the cache storage.
    * @param {string} key - The key to identify the data to be deleted.
-   * @returns {Promise<void>} A promise that resolves when the data is deleted.
+   * @returns {Promise<boolean>} A promise that resolves to true if deleted, false if not found.
    * @example
-   * await CacheStorageManager.delete('exampleKey');
+   * await cacheStorageManager.delete('exampleKey');
    */
-  static async delete(key) {
-    const cache = await this.getCache();
-    const request = new Request(key);
-    await cache.delete(request);
+  async delete(key) {
+    try {
+      const cache = await CacheStorageManager.getCache();
+      const request = new Request(key);
+      const result = await cache.delete(request);
+      return result;
+    } catch (error) {
+      console.error('Error deleting data from cache storage:', error);
+      return false;
+    }
   }
 
   /**
    * Clears all data from the cache storage.
    * @returns {Promise<void>} A promise that resolves when the cache is cleared.
    * @example
-   * await CacheStorageManager.clear();
+   * await cacheStorageManager.clear();
    */
-  static async clear() {
-    await caches.delete(this.cacheName);
+  async clear() {
+    try {
+      await caches.delete(CacheStorageManager.cacheName);
+    } catch (error) {
+      console.error('Error clearing cache storage:', error);
+      throw error;
+    }
   }
 
   /**
@@ -95,6 +118,23 @@ class CacheStorageManager {
       keys.push(new URL(request.url).pathname); // Extracts the key from the URL
     }
     return keys;
+  }
+
+  /**
+   * Check if the key exists in cache storage.
+   * @param {string} key - The cache key.
+   * @returns {Promise<boolean>} True if exists, false otherwise.
+   */
+  async has(key) {
+    try {
+      const cache = await CacheStorageManager.getCache();
+      const request = new Request(key);
+      const response = await cache.match(request);
+      return response !== undefined;
+    } catch (error) {
+      console.error('Error checking if key exists in cache storage:', error);
+      return false;
+    }
   }
 }
 
