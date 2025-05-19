@@ -5,7 +5,7 @@ A flexible caching package for API calls and functions with multiple storage str
 ## Features
 
 - **Multiple Storage Types**: Support for LocalStorage, CacheStorage, and IndexedDB
-- **Caching Strategies**: 
+- **Caching Strategies**:
   - `cacheFirst`: Always load from cache, only fetch if cache is empty
   - `cacheFirstThenUpdate`: Load from cache first, then update cache in background
 - **API Call Caching**: Easily cache API calls with automatic key generation based on URL, query parameters, and body
@@ -16,7 +16,7 @@ A flexible caching package for API calls and functions with multiple storage str
 ## Installation
 
 ```bash
-npm install @yourusername/cache-manager
+npm install @fadaeixlii/browser-cache-manager
 ```
 
 ## Usage
@@ -24,30 +24,41 @@ npm install @yourusername/cache-manager
 ### Basic Usage
 
 ```javascript
-import { CacheManager, CacheDriverType, CacheStrategies } from '@yourusername/cache-manager';
+import {
+  CacheManager,
+  CacheDriverType,
+  CacheStrategies,
+} from "@fadaeixlii/browser-cache-manager";
 
 // Create a cache manager with the desired storage type
 const cacheManager = new CacheManager(CacheDriverType.LOCAL_STORAGE);
 
 // Set data to cache
-await cacheManager.set('my-key', { foo: 'bar' });
+await cacheManager.set("my-key", { foo: "bar" });
 
 // Get data from cache
-const data = await cacheManager.get('my-key');
+const data = await cacheManager.get("my-key");
 console.log(data); // { foo: 'bar' }
 ```
 
 ### Caching API Calls
 
 ```javascript
-import { StrategiesManager, CacheStrategies, CacheDriverType } from '@yourusername/cache-manager';
+import {
+  StrategiesManager,
+  CacheStrategies,
+  CacheDriverType,
+} from "@fadaeixlii/browser-cache-manager";
 
 // Cache an API call with the justCache strategy
-const result = await StrategiesManager.cacheApiCall('https://api.example.com/data', {
-  params: { id: 123 },
-  strategy: CacheStrategies.JUST_CACHE,
-  cacheType: CacheDriverType.LOCAL_STORAGE
-});
+const result = await StrategiesManager.cacheApiCall(
+  "https://api.example.com/data",
+  {
+    params: { id: 123 },
+    strategy: CacheStrategies.JUST_CACHE,
+    cacheType: CacheDriverType.LOCAL_STORAGE,
+  }
+);
 
 console.log(result.data); // The API response data
 console.log(result.fromCache); // true if loaded from cache, false if freshly fetched
@@ -56,19 +67,25 @@ console.log(result.fromCache); // true if loaded from cache, false if freshly fe
 ### Caching Functions
 
 ```javascript
-import { StrategiesManager, CacheStrategies } from '@yourusername/cache-manager';
+import {
+  StrategiesManager,
+  CacheStrategies,
+} from "@fadaeixlii/browser-cache-manager";
 
 // Define an expensive function
 function expensiveCalculation(a, b) {
-  console.log('Calculating...');
+  console.log("Calculating...");
   return a + b;
 }
 
 // Create a cached version of the function
-const cachedCalculation = StrategiesManager.cacheFunction(expensiveCalculation, {
-  strategy: CacheStrategies.CACHE_FIRST_THEN_UPDATE,
-  cacheType: CacheDriverType.INDEXED_DB
-});
+const cachedCalculation = StrategiesManager.cacheFunction(
+  expensiveCalculation,
+  {
+    strategy: CacheStrategies.CACHE_FIRST_THEN_UPDATE,
+    cacheType: CacheDriverType.INDEXED_DB,
+  }
+);
 
 // First call will execute the function
 const result1 = await cachedCalculation(5, 10);
@@ -117,7 +134,9 @@ const result = await StrategiesManager.cacheApiCall(url, options);
 const cachedFunc = StrategiesManager.cacheFunction(originalFunc, options);
 
 // Create a new cache manager
-const cacheManager = StrategiesManager.createCacheManager(CacheDriverType.INDEXED_DB);
+const cacheManager = StrategiesManager.createCacheManager(
+  CacheDriverType.INDEXED_DB
+);
 ```
 
 ### Cache Drivers

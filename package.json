@@ -1,6 +1,6 @@
 {
-    "name": "browser-cache-manager",
-    "version": "1.0.0",
+    "name": "@fadaeixlii/browser-cache-manager",
+    "version": "1.0.1",
     "description": "A flexible caching package for API calls and functions with multiple storage strategies",
     "main": "index.js",
     "scripts": {
@@ -21,10 +21,10 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/browser-cache-manager.git"
+        "url": "git+https://github.com/@fadaeixlii/browser-cache-manager.git"
     },
     "bugs": {
-        "url": "https://github.com/browser-cache-manager/issues"
+        "url": "https://github.com/@fadaeixlii/browser-cache-manager/issues"
     },
-    "homepage": "https://github.com/browser-cache-manager#readme"
+    "homepage": "https://github.com/@fadaeixlii/browser-cache-manager#readme"
 }
